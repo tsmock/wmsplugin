@@ -41,7 +41,7 @@ abstract public class Grabber implements Runnable {
 
     protected void grabError(Exception e){ // report error when grabing image
         e.printStackTrace();
-        
+
         BufferedImage img = new BufferedImage(width(), height(), BufferedImage.TYPE_INT_ARGB);
         Graphics g = img.getGraphics();
         g.setColor(Color.RED);

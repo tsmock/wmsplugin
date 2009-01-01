@@ -63,7 +63,7 @@ public class WMSLayer extends Layer {
 
     protected String baseURL;
     protected final int serializeFormatVersion = 4;
-    
+
     private ExecutorService executor;
 
     public WMSLayer() {
@@ -79,7 +79,7 @@ public class WMSLayer extends Layer {
         this.baseURL = baseURL;
         mv = Main.map.mapView;
         getPPD();
-        
+
         executor = Executors.newFixedThreadPool(3);
     }
 
@@ -120,7 +120,7 @@ public class WMSLayer extends Layer {
     }
 
     private Bounds XYtoBounds (int x, int y) {
-        return new Bounds( 
+        return new Bounds(
             new LatLon( x * ImageSize / pixelPerDegree,
                          y * ImageSize / pixelPerDegree),
             new LatLon((x + 1) *  ImageSize / pixelPerDegree,
@@ -130,7 +130,7 @@ public class WMSLayer extends Layer {
     private int modulo (int a, int b) {
       if(a%b>=0)return a%b;
       else return a%b+b;
-    }	  
+    }
 
     protected Bounds bounds(){
         return new Bounds(
@@ -193,7 +193,7 @@ public class WMSLayer extends Layer {
     @Override public Component[] getMenuEntries() {
         return new Component[]{
                 new JMenuItem(new LayerListDialog.ShowHideLayerAction(this)),
-                new JMenuItem(new LayerListDialog.DeleteLayerAction(this)),				
+                new JMenuItem(new LayerListDialog.DeleteLayerAction(this)),
                 new JSeparator(),
                 new JMenuItem(new LoadWmsAction()),
                 new JMenuItem(new SaveWmsAction()),

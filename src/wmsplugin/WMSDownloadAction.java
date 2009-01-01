@@ -13,15 +13,15 @@ import org.openstreetmap.josm.data.Bounds;
 public class WMSDownloadAction extends JosmAction {
 
     private WMSInfo info;
-    
+
     public WMSDownloadAction(WMSInfo info) {
         super(info.name, "wmsmenu", tr("Download WMS tile from {0}",info.name), null, false);
         this.info = info;
     }
-    
+
     public void actionPerformed(ActionEvent e) {
         System.out.println(info.url);
-        
+
         WMSLayer wmsLayer = new WMSLayer(info.name, info.url);
         Main.main.addLayer(wmsLayer);
     }

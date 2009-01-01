@@ -44,7 +44,7 @@ public class WMSGrabber extends Grabber {
                 b.min.lon(), b.min.lat(),
                 b.max.lon(), b.max.lat(),
                 width(), height());
-            
+
             image.min = proj.latlon2eastNorth(b.min);
             image.max = proj.latlon2eastNorth(b.max);
 
@@ -76,13 +76,13 @@ public class WMSGrabber extends Grabber {
 
     protected BufferedImage grab(URL url) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        
+
         String contentType = conn.getHeaderField("Content-Type");
-        if( conn.getResponseCode() != 200 
+        if( conn.getResponseCode() != 200
                 || contentType != null && !contentType.startsWith("image") ) {
             throw new IOException(readException(conn));
         }
-        
+
         InputStream is = new ProgressInputStream(conn, null);
         BufferedImage img = ImageIO.read(is);
         is.close();
@@ -93,7 +93,7 @@ public class WMSGrabber extends Grabber {
         StringBuilder exception = new StringBuilder();
         InputStream in = conn.getInputStream();
         BufferedReader br = new BufferedReader(new InputStreamReader(in));
-        
+
         String line = null;
         while( (line = br.readLine()) != null) {
             exception.append(line);

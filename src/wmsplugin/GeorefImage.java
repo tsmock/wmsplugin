@@ -61,7 +61,7 @@ public class GeorefImage implements Serializable {
         min = (EastNorth) in.readObject();
         image = (BufferedImage) ImageIO.read(ImageIO.createImageInputStream(in));
     }
-    
+
     private void writeObject(ObjectOutputStream out) throws IOException {
         out.writeObject(max);
         out.writeObject(min);

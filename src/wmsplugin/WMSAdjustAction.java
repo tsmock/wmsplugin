@@ -77,7 +77,7 @@ public class WMSAdjustAction extends MapMode implements
     @Override public void mouseReleased(MouseEvent e) {
         Main.map.mapView.repaint();
         Main.map.mapView.setCursor(Cursor.getDefaultCursor());
-        selectedImage = null;	
+        selectedImage = null;   
         prevEastNorth = null;
         selectedLayer = null;
     }

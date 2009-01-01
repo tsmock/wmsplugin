@@ -46,7 +46,7 @@ public class WMSPlugin extends Plugin {
 
     // remember state of menu item to restore on changed preferences
     static private boolean menuEnabled = false;
-    
+
     public WMSPlugin() {
         try
         {
@@ -62,7 +62,7 @@ public class WMSPlugin extends Plugin {
     // look like this:
     // wmsplugin.1.name=Landsat
     // wmsplugin.1.url=http://and.so.on/
-    
+
     public void copy(String from, String to) throws FileNotFoundException, IOException
     {
         File pluginDir = new File(Main.pref.getPreferencesDir() + "plugins/wmsplugin/");
@@ -77,11 +77,11 @@ public class WMSPlugin extends Plugin {
         out.close();
     }
 
-    
+
     public static void refreshMenu() {
         wmsList.clear();
         Map<String,String> prefs = Main.pref.getAllPrefix("wmsplugin.url.");
-        
+
         TreeSet<String> keys = new TreeSet<String>(prefs.keySet());
         int prefid = 0;
         String name = null;
@@ -142,16 +142,16 @@ public class WMSPlugin extends Plugin {
         } else {
             wmsJMenu.removeAll();
         }
-        
+
         // for each configured WMSInfo, add a menu entry.
         for (final WMSInfo u : wmsList) {
             wmsJMenu.add(new JMenuItem(new WMSDownloadAction(u)));
         }
         wmsJMenu.addSeparator();
         wmsJMenu.add(new JMenuItem(new Map_Rectifier_WMSmenuAction()));
-        
+
         wmsJMenu.addSeparator();
-        wmsJMenu.add(new JMenuItem(new 
+        wmsJMenu.add(new JMenuItem(new
                 JosmAction(tr("Blank Layer"), "blankmenu", tr("Open a blank WMS layer to load data from a file"), null, false) {
             public void actionPerformed(ActionEvent ev) {
                 Main.main.addLayer(new WMSLayer());
@@ -189,27 +189,27 @@ public class WMSPlugin extends Plugin {
                      double _pixelPerDegree, GeorefImage _image, MapView _mv, WMSLayer _layer){
         if(_baseURL.startsWith("yahoo://"))
             return new YAHOOGrabber(_baseURL, _b, _proj, _pixelPerDegree, _image, _mv, _layer);
-        else 
+        else
             return new WMSGrabber(_baseURL, _b, _proj, _pixelPerDegree, _image, _mv, _layer);
         // OSBGrabber should be rewrite for thread support first
         //if (wmsurl.matches("(?i).*layers=npeoocmap.*") || wmsurl.matches("(?i).*layers=npe.*") ){
-        //	return new OSGBGrabber(_b, _proj, _pixelPerDegree,  _images, _mv, _layer);
+        //  return new OSGBGrabber(_b, _proj, _pixelPerDegree,  _images, _mv, _layer);
         //} else {
-        //	return new WMSGrabber(_b, _proj, _pixelPerDegree,  _images, _mv, _layer);
+        //  return new WMSGrabber(_b, _proj, _pixelPerDegree,  _images, _mv, _layer);
         //}
     }
-    
+
     private static void setEnabledAll(boolean isEnabled) {
         for(int i=0; i < wmsJMenu.getItemCount(); i++) {
             JMenuItem item = wmsJMenu.getItem(i);
-            
+
             if(item != null) item.setEnabled(isEnabled);
         }
                menuEnabled = isEnabled;
     }
-    
+
     public void mapFrameInitialized(MapFrame oldFrame, MapFrame newFrame) {
-        if (oldFrame==null && newFrame!=null) { 
+        if (oldFrame==null && newFrame!=null) {
             setEnabledAll(true);
             Main.map.addMapMode(new IconToggleButton
                         (new WMSAdjustAction(Main.map)));
@@ -217,7 +217,7 @@ public class WMSPlugin extends Plugin {
             setEnabledAll(false);
         }
     }
-    
+
     public PreferenceSetting getPreferenceSetting() {
         return new WMSPreferenceEditor();
     }

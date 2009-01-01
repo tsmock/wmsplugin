@@ -26,20 +26,20 @@ import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.tools.GBC;
 
 public class WMSPreferenceEditor implements PreferenceSetting {
-    
+
     private Map<String,String> orig;
     private DefaultTableModel model;
     private HashMap<Integer, WMSInfo> oldValues = new HashMap<Integer, WMSInfo>();
 
     public void addGui(final PreferenceDialog gui) {
         JPanel p = gui.createPreferenceTab("wms", tr("WMS Plugin Preferences"), tr("Modify list of WMS servers displayed in the WMS plugin menu"));
-        
+
         model = new DefaultTableModel(new String[]{tr("Menu Name"), tr("WMS URL")}, 0);
         final JTable list = new JTable(model);
         JScrollPane scroll = new JScrollPane(list);
         p.add(scroll, GBC.eol().fill(GBC.BOTH));
         scroll.setPreferredSize(new Dimension(200,200));
-        
+
         for (WMSInfo i : WMSPlugin.wmsList) {
             oldValues.put(i.prefid, i);
             model.addRow(new String[]{i.name, i.url});
@@ -91,7 +91,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
                 }
             }
         });
-        
+
         JButton copy = new JButton(tr("Copy Default"));
         p.add(copy, GBC.std().insets(0,5,0,0));
         copy.addActionListener(new ActionListener(){
@@ -107,7 +107,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
             }
         });
     }
-    
+
     public boolean ok() {
         boolean change = false;
         for (int i = 0; i < model.getRowCount(); ++i) {
@@ -124,7 +124,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
             {
                 if (!origValue.name.equals(name) || !origValue.url.equals(url))
                 {
-                    origValue.name = name; 
+                    origValue.name = name;
                     origValue.url = url;
                     origValue.save();
                     change = true;
@@ -132,7 +132,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
                 oldValues.remove(i);
             }
         }
-        
+
         // using null values instead of empty string really deletes
         // the preferences entry
         for (WMSInfo i : oldValues.values())
@@ -146,16 +146,16 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         if (change) WMSPlugin.refreshMenu();
         return false;
     }
-    
+
     /**
      * Updates a server URL in the preferences dialog. Used by other plugins.
-     * 
+     *
      * @param server The server name
      * @param url The server URL
      */
     public void setServerUrl(String server, String url)
     {
-        for (int i = 0; i < model.getRowCount(); i++) 
+        for (int i = 0; i < model.getRowCount(); i++)
         {
             if( server.equals(model.getValueAt(i,0).toString()) )
             {
@@ -174,7 +174,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
      */
     public String getServerUrl(String server)
     {
-        for (int i = 0; i < model.getRowCount(); i++) 
+        for (int i = 0; i < model.getRowCount(); i++)
         {
             if( server.equals(model.getValueAt(i,0).toString()) )
             {
