@@ -22,7 +22,7 @@ import org.openstreetmap.josm.gui.NavigatableComponent;
 
 public class GeorefImage implements Serializable {
     public BufferedImage image = null;
-    private BufferedImage reImg = null;
+    private Image reImg = null;
     private Dimension reImgHash = new Dimension(0, 0);
     public EastNorth min, max;
     public boolean downloadingStarted;
@@ -119,5 +119,9 @@ public class GeorefImage implements Serializable {
         Image out_img = Toolkit.getDefaultToolkit().createImage(filt_ip);
 
         return out_img;
+    }
+    
+    public void flushedResizedCachedInstance() {
+        reImg = null;
     }
 }
