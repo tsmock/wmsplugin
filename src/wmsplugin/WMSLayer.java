@@ -25,9 +25,9 @@ import javax.swing.JSeparator;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.DiskAccessAction;
+import org.openstreetmap.josm.actions.SaveActionBase;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
-import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.OptionPaneUtil;
@@ -100,9 +100,11 @@ public class WMSLayer extends Layer {
 
     public void initializeImages() {
         images = new GeorefImage[dax][day];
-        for(int x = 0; x<dax; ++x)
-            for(int y = 0; y<day; ++y)
+        for(int x = 0; x<dax; ++x) {
+            for(int y = 0; y<day; ++y) {
                 images[x][y]= new GeorefImage(false);
+            }
+        }
     }
 
     @Override public Icon getIcon() {
@@ -125,8 +127,8 @@ public class WMSLayer extends Layer {
 
     private ProjectionBounds XYtoBounds (int x, int y) {
         return new ProjectionBounds(
-            new EastNorth(      x * ImageSize / pixelPerDegree,       y * ImageSize / pixelPerDegree),
-            new EastNorth((x + 1) * ImageSize / pixelPerDegree, (y + 1) * ImageSize / pixelPerDegree));
+                new EastNorth(      x * ImageSize / pixelPerDegree,       y * ImageSize / pixelPerDegree),
+                new EastNorth((x + 1) * ImageSize / pixelPerDegree, (y + 1) * ImageSize / pixelPerDegree));
     }
 
     private int modulo (int a, int b) {
@@ -137,11 +139,14 @@ public class WMSLayer extends Layer {
         if(baseURL == null) return;
 
         if( !startstop.isSelected() || (pixelPerDegree / getPPD() > minZoom) ){ //don't download when it's too outzoomed
-            for(int x = 0; x<dax; ++x)
-                for(int y = 0; y<day; ++y)
+            for(int x = 0; x<dax; ++x) {
+                for(int y = 0; y<day; ++y) {
                     images[modulo(x,dax)][modulo(y,day)].paint(g, mv, dx, dy);
-        } else
+                }
+            }
+        } else {
             downloadAndPaintVisible(g, mv);
+        }
     }
 
     public void displace(double dx, double dy) {
@@ -158,15 +163,15 @@ public class WMSLayer extends Layer {
 
         if((bmaxx - bminx > dax) || (bmaxy - bminy > day)){
             OptionPaneUtil.showMessageDialog(
-                    Main.parent, 
+                    Main.parent,
                     tr("The requested area is too big. Please zoom in a little, or change resolution"),
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE
-                    );
+            );
             return;
         }
 
-        for(int x = bminx; x<bmaxx; ++x)
+        for(int x = bminx; x<bmaxx; ++x) {
             for(int y = bminy; y<bmaxy; ++y){
                 GeorefImage img = images[modulo(x,dax)][modulo(y,day)];
                 g.drawRect(x, y, dax, bminy);
@@ -178,15 +183,17 @@ public class WMSLayer extends Layer {
                     executor.submit(gr);
                 }
             }
+        }
     }
 
     @Override public void visitBoundingBox(BoundingXYVisitor v) {
-        for(int x = 0; x<dax; ++x)
+        for(int x = 0; x<dax; ++x) {
             for(int y = 0; y<day; ++y)
                 if(images[x][y].image!=null){
                     v.visit(images[x][y].min);
                     v.visit(images[x][y].max);
                 }
+        }
     }
 
     @Override public Object getInfoComponent() {
@@ -212,11 +219,12 @@ public class WMSLayer extends Layer {
     }
 
     public GeorefImage findImage(EastNorth eastNorth) {
-        for(int x = 0; x<dax; ++x)
+        for(int x = 0; x<dax; ++x) {
             for(int y = 0; y<day; ++y)
                 if(images[x][y].image!=null && images[x][y].min!=null && images[x][y].max!=null)
                     if(images[x][y].contains(eastNorth, dx, dy))
                         return images[x][y];
+        }
         return null;
     }
 
@@ -288,7 +296,8 @@ public class WMSLayer extends Layer {
             super(tr("Save WMS layer to file"), ImageProvider.get("save"));
         }
         public void actionPerformed(ActionEvent ev) {
-            File f = DiskAccessAction.createAndOpenSaveFileChooser(tr("Save WMS layer"), ".wms");
+            File f = SaveActionBase.createAndOpenSaveFileChooser(
+                    tr("Save WMS layer"), ".wms");
             try
             {
                 FileOutputStream fos = new FileOutputStream(f);
