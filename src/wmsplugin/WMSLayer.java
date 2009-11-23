@@ -40,7 +40,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
  * This is a layer that grabs the current screen from an WMS server. The data
- * fetched this way is tiled and managerd to the disc to reduce server load.
+ * fetched this way is tiled and managed to the disc to reduce server load.
  */
 public class WMSLayer extends Layer {
     protected static final Icon icon =

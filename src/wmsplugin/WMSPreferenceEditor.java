@@ -181,7 +181,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         overlapPanel.add(labelNorth); 
         overlapPanel.add(spinNorth); 
          
-        p.add(overlapPanel);	
+        p.add(overlapPanel);    
     }
 
     public boolean ok() {
