@@ -1,6 +1,5 @@
 package wmsplugin;
 
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Image;
@@ -31,7 +30,7 @@ public class GeorefImage implements Serializable {
 
     public boolean contains(EastNorth en, double dx, double dy) {
         return min.east()+dx <= en.east() && en.east() <= max.east()+dx
-            && min.north()+dy <= en.north() && en.north() <= max.north()+dy;
+        && min.north()+dy <= en.north() && en.north() <= max.north()+dy;
     }
 
     public boolean isVisible(NavigatableComponent nc, double dx, double dy) {
@@ -59,14 +58,9 @@ public class GeorefImage implements Serializable {
         int width = Math.abs(maxPt.x-minPt.x);
         int height = Math.abs(minPt.y-maxPt.y);
         int diffx, diffy;
-        try {
-            diffx = reImgHash.width - width;
-            diffy = reImgHash.height - height;
-        } catch(Exception e) {
-            reImgHash = new Dimension(0, 0);
-            diffx = 99;
-            diffy = 99;
-        }
+
+        diffx = reImgHash.width - width;
+        diffy = reImgHash.height - height;
         // This happens if you zoom outside the world
         if(width == 0 || height == 0)
             return false;
@@ -100,15 +94,11 @@ public class GeorefImage implements Serializable {
                 fallbackDraw(g, image, minPt, maxPt);
             } else {
                 // We haven't got a saved resized copy, so resize and cache it
-                reImg = new BufferedImage(width, height,
-                    alphaChannel
-                        ? BufferedImage.TYPE_INT_ARGB
-                        : BufferedImage.TYPE_3BYTE_BGR  // This removes alpha
-                    );
+                reImg = new BufferedImage(width, height, alphaChannel?BufferedImage.TYPE_INT_ARGB:BufferedImage.TYPE_3BYTE_BGR);
                 reImg.getGraphics().drawImage(image,
-                    0, 0, width, height, // dest
-                    0, 0, image.getWidth(null), image.getHeight(null), // src
-                    null);
+                        0, 0, width, height, // dest
+                        0, 0, image.getWidth(null), image.getHeight(null), // src
+                        null);
                 reImg.getGraphics().dispose();
 
                 reImgHash.setSize(width, height);
@@ -126,9 +116,9 @@ public class GeorefImage implements Serializable {
         if(reImg != null) reImg.flush();
         reImg = null;
         g.drawImage(img,
-            min.x, max.y, max.x, min.y, // dest
-            0, 0, img.getWidth(null), img.getHeight(null), // src
-            null);
+                min.x, max.y, max.x, min.y, // dest
+                0, 0, img.getWidth(null), img.getHeight(null), // src
+                null);
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
@@ -136,7 +126,7 @@ public class GeorefImage implements Serializable {
         min = (EastNorth) in.readObject();
         boolean hasImage = in.readBoolean();
         if (hasImage)
-            image = (BufferedImage) ImageIO.read(ImageIO.createImageInputStream(in));
+            image = ImageIO.read(ImageIO.createImageInputStream(in));
         else {
             in.readObject(); // read null from input stream
             image = null;
