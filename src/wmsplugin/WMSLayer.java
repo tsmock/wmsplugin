@@ -175,11 +175,16 @@ public class WMSLayer extends Layer {
         return a % b >= 0 ? a%b : a%b+b;
     }
 
+    private boolean zoomIsTooBig() {
+        //don't download when it's too outzoomed
+        return pixelPerDegree / getPPD() > minZoom;
+    }
+
     @Override public void paint(Graphics2D g, final MapView mv, Bounds bounds) {
         if(baseURL == null) return;
         if (usesInvalidUrl && !isInvalidUrlConfirmed) return;
 
-        if(pixelPerDegree / getPPD() > minZoom){ //don't download when it's too outzoomed
+        if (zoomIsTooBig()) {
             for(int x = 0; x<dax; ++x) {
                 for(int y = 0; y<day; ++y) {
                     images[modulo(x,dax)][modulo(y,day)].paint(g, mv, dx, dy);
@@ -199,15 +204,15 @@ public class WMSLayer extends Layer {
         if (isInvalidUrlConfirmed)
             return true;
         String msg  = tr("<html>The base URL<br>"
-                        + "''{0}''<br>"
-                        + "for this WMS layer does neither end with a ''&'' nor with a ''?''.<br>"
-                        + "This is likely to lead to invalid WMS request. You should check your<br>"
-                        + "preference settings.<br>"
-                        + "Do you want to fetch WMS tiles anyway?",
-                        url);
+                + "''{0}''<br>"
+                + "for this WMS layer does neither end with a ''&'' nor with a ''?''.<br>"
+                + "This is likely to lead to invalid WMS request. You should check your<br>"
+                + "preference settings.<br>"
+                + "Do you want to fetch WMS tiles anyway?",
+                url);
         String [] options = new String[] {
-            tr("Yes, fetch images"),
-            tr("No, abort")
+                tr("Yes, fetch images"),
+                tr("No, abort")
         };
         int ret = JOptionPane.showOptionDialog(
                 Main.parent,
@@ -223,24 +228,16 @@ public class WMSLayer extends Layer {
         default: return false;
         }
     }
+
     protected void downloadAndPaintVisible(Graphics g, final MapView mv){
         if (usesInvalidUrl)
             return;
+
         ProjectionBounds bounds = mv.getProjectionBounds();
         int bminx= (int)Math.floor (((bounds.min.east() - dx) * pixelPerDegree) / imageSize );
         int bminy= (int)Math.floor (((bounds.min.north() - dy) * pixelPerDegree) / imageSize );
         int bmaxx= (int)Math.ceil  (((bounds.max.east() - dx) * pixelPerDegree) / imageSize );
         int bmaxy= (int)Math.ceil  (((bounds.max.north() - dy) * pixelPerDegree) / imageSize );
-
-        if((bmaxx - bminx > dax) || (bmaxy - bminy > day)){
-            JOptionPane.showMessageDialog(
-                    Main.parent,
-                    tr("The requested area is too big. Please zoom in a little, or change resolution"),
-                    tr("Error"),
-                    JOptionPane.ERROR_MESSAGE
-            );
-            return;
-        }
 
         for(int x = bminx; x<bmaxx; ++x) {
             for(int y = bminy; y<bmaxy; ++y){
@@ -252,8 +249,8 @@ public class WMSLayer extends Layer {
                     img.flushedResizedCachedInstance();
                     Grabber gr = WMSPlugin.getGrabber(XYtoBounds(x,y), img, mv, this);
                     if(!gr.loadFromCache()){
-                       gr.setPriority(1);
-                       executor.submit(gr);
+                        gr.setPriority(1);
+                        executor.submit(gr);
                     }
                 }
             }
@@ -309,7 +306,16 @@ public class WMSLayer extends Layer {
             super(tr("Download visible tiles"));
         }
         public void actionPerformed(ActionEvent ev) {
-            downloadAndPaintVisible(mv.getGraphics(), mv);
+            if (zoomIsTooBig()) {
+                JOptionPane.showMessageDialog(
+                        Main.parent,
+                        tr("The requested area is too big. Please zoom in a little, or change resolution"),
+                        tr("Error"),
+                        JOptionPane.ERROR_MESSAGE
+                );
+            } else {
+                downloadAndPaintVisible(mv.getGraphics(), mv);
+            }
         }
     }
 
