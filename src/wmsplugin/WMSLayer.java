@@ -37,12 +37,14 @@ import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.io.CacheFiles;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 
 /**
  * This is a layer that grabs the current screen from an WMS server. The data
  * fetched this way is tiled and managed to the disc to reduce server load.
  */
-public class WMSLayer extends Layer {
+public class WMSLayer extends Layer implements PreferenceChangedListener {
     protected static final Icon icon =
         new ImageIcon(Toolkit.getDefaultToolkit().createImage(WMSPlugin.class.getResource("/images/wms_small.png")));
 
@@ -96,7 +98,9 @@ public class WMSLayer extends Layer {
         }
         resolution = mv.getDist100PixelText();
 
-        executor = Executors.newFixedThreadPool(3);
+        executor = Executors.newFixedThreadPool(
+            Main.pref.getInteger("wmsplugin.numThreads",
+            WMSPlugin.simultaneousConnections));
         if (baseURL != null && !baseURL.startsWith("html:") && !WMSGrabber.isUrlWithPatterns(baseURL)) {
             if (!(baseURL.endsWith("&") || baseURL.endsWith("?"))) {
                 if (!confirmMalformedUrl(baseURL)) {
@@ -109,6 +113,8 @@ public class WMSLayer extends Layer {
                 }
             }
         }
+
+        Main.pref.addPreferenceChangeListener(this);
     }
 
     public boolean hasAutoDownload(){
@@ -167,8 +173,8 @@ public class WMSLayer extends Layer {
 
     private ProjectionBounds XYtoBounds (int x, int y) {
         return new ProjectionBounds(
-                new EastNorth(      x * imageSize / pixelPerDegree,       y * imageSize / pixelPerDegree),
-                new EastNorth((x + 1) * imageSize / pixelPerDegree, (y + 1) * imageSize / pixelPerDegree));
+            new EastNorth(      x * imageSize / pixelPerDegree,       y * imageSize / pixelPerDegree),
+            new EastNorth((x + 1) * imageSize / pixelPerDegree, (y + 1) * imageSize / pixelPerDegree));
     }
 
     private int modulo (int a, int b) {
@@ -204,24 +210,24 @@ public class WMSLayer extends Layer {
         if (isInvalidUrlConfirmed)
             return true;
         String msg  = tr("<html>The base URL<br>"
-                + "''{0}''<br>"
-                + "for this WMS layer does neither end with a ''&'' nor with a ''?''.<br>"
-                + "This is likely to lead to invalid WMS request. You should check your<br>"
-                + "preference settings.<br>"
-                + "Do you want to fetch WMS tiles anyway?",
-                url);
+            + "''{0}''<br>"
+            + "for this WMS layer does neither end with a ''&'' nor with a ''?''.<br>"
+            + "This is likely to lead to invalid WMS request. You should check your<br>"
+            + "preference settings.<br>"
+            + "Do you want to fetch WMS tiles anyway?",
+            url);
         String [] options = new String[] {
-                tr("Yes, fetch images"),
-                tr("No, abort")
+            tr("Yes, fetch images"),
+            tr("No, abort")
         };
         int ret = JOptionPane.showOptionDialog(
-                Main.parent,
-                msg,
-                tr("Invalid URL?"),
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE,
-                null,
-                options, options[1]
+            Main.parent,
+            msg,
+            tr("Invalid URL?"),
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE,
+            null,
+            options, options[1]
         );
         switch(ret) {
         case JOptionPane.YES_OPTION: return true;
@@ -272,21 +278,21 @@ public class WMSLayer extends Layer {
 
     @Override public Component[] getMenuEntries() {
         return new Component[]{
-                new JMenuItem(LayerListDialog.getInstance().createActivateLayerAction(this)),
-                new JMenuItem(LayerListDialog.getInstance().createShowHideLayerAction(this)),
-                new JMenuItem(LayerListDialog.getInstance().createDeleteLayerAction(this)),
-                new JSeparator(),
-                new JMenuItem(new LoadWmsAction()),
-                new JMenuItem(new SaveWmsAction()),
-                new JMenuItem(new BookmarkWmsAction()),
-                new JSeparator(),
-                startstop,
-                alphaChannel,
-                new JMenuItem(new ChangeResolutionAction()),
-                new JMenuItem(new ReloadErrorTilesAction()),
-                new JMenuItem(new DownloadAction()),
-                new JSeparator(),
-                new JMenuItem(new LayerListPopup.InfoAction(this))
+            new JMenuItem(LayerListDialog.getInstance().createActivateLayerAction(this)),
+            new JMenuItem(LayerListDialog.getInstance().createShowHideLayerAction(this)),
+            new JMenuItem(LayerListDialog.getInstance().createDeleteLayerAction(this)),
+            new JSeparator(),
+            new JMenuItem(new LoadWmsAction()),
+            new JMenuItem(new SaveWmsAction()),
+            new JMenuItem(new BookmarkWmsAction()),
+            new JSeparator(),
+            startstop,
+            alphaChannel,
+            new JMenuItem(new ChangeResolutionAction()),
+            new JMenuItem(new ReloadErrorTilesAction()),
+            new JMenuItem(new DownloadAction()),
+            new JSeparator(),
+            new JMenuItem(new LayerListPopup.InfoAction(this))
         };
     }
 
@@ -307,10 +313,10 @@ public class WMSLayer extends Layer {
         public void actionPerformed(ActionEvent ev) {
             if (zoomIsTooBig()) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
-                        tr("The requested area is too big. Please zoom in a little, or change resolution"),
-                        tr("Error"),
-                        JOptionPane.ERROR_MESSAGE
+                    Main.parent,
+                    tr("The requested area is too big. Please zoom in a little, or change resolution"),
+                    tr("Error"),
+                    JOptionPane.ERROR_MESSAGE
                 );
             } else {
                 downloadAndPaintVisible(mv.getGraphics(), mv);
@@ -380,11 +386,11 @@ public class WMSLayer extends Layer {
         }
         public void actionPerformed(ActionEvent ev) {
             File f = SaveActionBase.createAndOpenSaveFileChooser(
-                    tr("Save WMS layer"), ".wms");
+                tr("Save WMS layer"), ".wms");
             try {
                 if (f != null) {
                     ObjectOutputStream oos = new ObjectOutputStream(
-                            new FileOutputStream(f)
+                        new FileOutputStream(f)
                     );
                     oos.writeInt(serializeFormatVersion);
                     oos.writeInt(dax);
@@ -408,7 +414,7 @@ public class WMSLayer extends Layer {
         }
         public void actionPerformed(ActionEvent ev) {
             JFileChooser fc = DiskAccessAction.createAndOpenFileChooser(true,
-                    false, tr("Load WMS layer"), "wms");
+                false, tr("Load WMS layer"), "wms");
             if(fc == null) return;
             File f = fc.getSelectedFile();
             if (f == null) return;
@@ -419,9 +425,9 @@ public class WMSLayer extends Layer {
                 int sfv = ois.readInt();
                 if (sfv != serializeFormatVersion) {
                     JOptionPane.showMessageDialog(Main.parent,
-                            tr("Unsupported WMS file version; found {0}, expected {1}", sfv, serializeFormatVersion),
-                            tr("File Format Error"),
-                            JOptionPane.ERROR_MESSAGE);
+                        tr("Unsupported WMS file version; found {0}, expected {1}", sfv, serializeFormatVersion),
+                        tr("File Format Error"),
+                        JOptionPane.ERROR_MESSAGE);
                     return;
                 }
                 startstop.setSelected(false);
@@ -448,7 +454,8 @@ public class WMSLayer extends Layer {
         }
     }
     /**
-     * This action will add a WMS layer menu entry with the current WMS layer URL and name extended by the current resolution.
+     * This action will add a WMS layer menu entry with the current WMS layer
+     * URL and name extended by the current resolution.
      * When using the menu entry again, the WMS cache will be used properly.
      */
     public class BookmarkWmsAction extends AbstractAction {
@@ -470,8 +477,18 @@ public class WMSLayer extends Layer {
                 baseName = getName();
             }
             Main.pref.put("wmsplugin.url."+ i +".url",baseURL );
-            Main.pref.put("wmsplugin.url."+String.valueOf(i)+".name", baseName + "#PPD=" + pixelPerDegree );
+            Main.pref.put("wmsplugin.url."+String.valueOf(i)+".name",
+                baseName + "#PPD=" + pixelPerDegree );
             WMSPlugin.refreshMenu();
+        }
+    }
+
+    public void preferenceChanged(PreferenceChangeEvent event) {
+        if (event.getKey().equals("wmsplugin.simultaneousConnections")) {
+            executor.shutdownNow();
+            executor = Executors.newFixedThreadPool(
+                Main.pref.getInteger("wmsplugin.numThreads",
+                WMSPlugin.simultaneousConnections));
         }
     }
 }
