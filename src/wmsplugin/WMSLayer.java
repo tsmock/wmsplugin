@@ -12,33 +12,34 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
-import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.JSeparator;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.DiskAccessAction;
 import org.openstreetmap.josm.actions.SaveActionBase;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.ProjectionBounds;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.io.CacheFiles;
 import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 
 /**
  * This is a layer that grabs the current screen from an WMS server. The data
@@ -47,6 +48,8 @@ import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 public class WMSLayer extends Layer implements PreferenceChangedListener {
     protected static final Icon icon =
         new ImageIcon(Toolkit.getDefaultToolkit().createImage(WMSPlugin.class.getResource("/images/wms_small.png")));
+
+    private static final BooleanProperty PROP_ALPHA_CHANNEL = new BooleanProperty("wmsplugin.alpha_channel", true);
 
     public int messageNum = 5; //limit for messages per layer
     protected MapView mv;
@@ -60,11 +63,10 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     protected double dy = 0.0;
     protected double pixelPerDegree;
     protected GeorefImage[][] images = new GeorefImage[dax][day];
-    JCheckBoxMenuItem startstop = new JCheckBoxMenuItem(tr("Automatic downloading"), true);
-    protected JCheckBoxMenuItem alphaChannel = new JCheckBoxMenuItem(new ToggleAlphaAction());
     protected String baseURL;
     protected String cookies;
     protected final int serializeFormatVersion = 5;
+    protected boolean autoDownloadEnabled = true;
 
     private ExecutorService executor = null;
 
@@ -81,7 +83,6 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
 
     public WMSLayer(String name, String baseURL, String cookies) {
         super(name);
-        alphaChannel.setSelected(Main.pref.getBoolean("wmsplugin.alpha_channel"));
         setBackgroundLayer(true); /* set global background variable */
         initializeImages();
         this.baseURL = baseURL;
@@ -99,8 +100,8 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         resolution = mv.getDist100PixelText();
 
         executor = Executors.newFixedThreadPool(
-            Main.pref.getInteger("wmsplugin.numThreads",
-            WMSPlugin.simultaneousConnections));
+                Main.pref.getInteger("wmsplugin.numThreads",
+                        WMSPlugin.simultaneousConnections));
         if (baseURL != null && !baseURL.startsWith("html:") && !WMSGrabber.isUrlWithPatterns(baseURL)) {
             if (!(baseURL.endsWith("&") || baseURL.endsWith("?"))) {
                 if (!confirmMalformedUrl(baseURL)) {
@@ -118,7 +119,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     }
 
     public boolean hasAutoDownload(){
-        return startstop.isSelected();
+        return autoDownloadEnabled;
     }
 
     public double getDx(){
@@ -158,7 +159,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     }
 
     @Override public String getToolTipText() {
-        if(startstop.isSelected())
+        if(autoDownloadEnabled)
             return tr("WMS layer ({0}), automatically downloading in zoom {1}", getName(), resolution);
         else
             return tr("WMS layer ({0}), downloading in zoom {1}", getName(), resolution);
@@ -173,8 +174,8 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
 
     private ProjectionBounds XYtoBounds (int x, int y) {
         return new ProjectionBounds(
-            new EastNorth(      x * imageSize / pixelPerDegree,       y * imageSize / pixelPerDegree),
-            new EastNorth((x + 1) * imageSize / pixelPerDegree, (y + 1) * imageSize / pixelPerDegree));
+                new EastNorth(      x * imageSize / pixelPerDegree,       y * imageSize / pixelPerDegree),
+                new EastNorth((x + 1) * imageSize / pixelPerDegree, (y + 1) * imageSize / pixelPerDegree));
     }
 
     private int modulo (int a, int b) {
@@ -210,24 +211,24 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         if (isInvalidUrlConfirmed)
             return true;
         String msg  = tr("<html>The base URL<br>"
-            + "''{0}''<br>"
-            + "for this WMS layer does neither end with a ''&'' nor with a ''?''.<br>"
-            + "This is likely to lead to invalid WMS request. You should check your<br>"
-            + "preference settings.<br>"
-            + "Do you want to fetch WMS tiles anyway?",
-            url);
+                + "''{0}''<br>"
+                + "for this WMS layer does neither end with a ''&'' nor with a ''?''.<br>"
+                + "This is likely to lead to invalid WMS request. You should check your<br>"
+                + "preference settings.<br>"
+                + "Do you want to fetch WMS tiles anyway?",
+                url);
         String [] options = new String[] {
-            tr("Yes, fetch images"),
-            tr("No, abort")
+                tr("Yes, fetch images"),
+                tr("No, abort")
         };
         int ret = JOptionPane.showOptionDialog(
-            Main.parent,
-            msg,
-            tr("Invalid URL?"),
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.WARNING_MESSAGE,
-            null,
-            options, options[1]
+                Main.parent,
+                msg,
+                tr("Invalid URL?"),
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                options, options[1]
         );
         switch(ret) {
         case JOptionPane.YES_OPTION: return true;
@@ -236,7 +237,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     }
 
     protected void downloadAndPaintVisible(Graphics g, final MapView mv,
-    boolean real){
+            boolean real){
         if (usesInvalidUrl)
             return;
 
@@ -277,23 +278,23 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         return getToolTipText();
     }
 
-    @Override public Component[] getMenuEntries() {
-        return new Component[]{
-            new JMenuItem(LayerListDialog.getInstance().createActivateLayerAction(this)),
-            new JMenuItem(LayerListDialog.getInstance().createShowHideLayerAction(this)),
-            new JMenuItem(LayerListDialog.getInstance().createDeleteLayerAction(this)),
-            new JSeparator(),
-            new JMenuItem(new LoadWmsAction()),
-            new JMenuItem(new SaveWmsAction()),
-            new JMenuItem(new BookmarkWmsAction()),
-            new JSeparator(),
-            startstop,
-            alphaChannel,
-            new JMenuItem(new ChangeResolutionAction()),
-            new JMenuItem(new ReloadErrorTilesAction()),
-            new JMenuItem(new DownloadAction()),
-            new JSeparator(),
-            new JMenuItem(new LayerListPopup.InfoAction(this))
+    @Override public Action[] getMenuEntries() {
+        return new Action[]{
+                LayerListDialog.getInstance().createActivateLayerAction(this),
+                LayerListDialog.getInstance().createShowHideLayerAction(),
+                LayerListDialog.getInstance().createDeleteLayerAction(),
+                SeparatorLayerAction.INSTANCE,
+                new LoadWmsAction(),
+                new SaveWmsAction(),
+                new BookmarkWmsAction(),
+                SeparatorLayerAction.INSTANCE,
+                new StartStopAction(),
+                new ToggleAlphaAction(),
+                new ChangeResolutionAction(),
+                new ReloadErrorTilesAction(),
+                new DownloadAction(),
+                SeparatorLayerAction.INSTANCE,
+                new LayerListPopup.InfoAction(this)
         };
     }
 
@@ -314,10 +315,10 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         public void actionPerformed(ActionEvent ev) {
             if (zoomIsTooBig()) {
                 JOptionPane.showMessageDialog(
-                    Main.parent,
-                    tr("The requested area is too big. Please zoom in a little, or change resolution"),
-                    tr("Error"),
-                    JOptionPane.ERROR_MESSAGE
+                        Main.parent,
+                        tr("The requested area is too big. Please zoom in a little, or change resolution"),
+                        tr("Error"),
+                        JOptionPane.ERROR_MESSAGE
                 );
             } else {
                 downloadAndPaintVisible(mv.getGraphics(), mv, true);
@@ -361,14 +362,14 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         }
     }
 
-    public class ToggleAlphaAction extends AbstractAction {
+    public class ToggleAlphaAction extends AbstractAction implements LayerAction {
         public ToggleAlphaAction() {
             super(tr("Alpha channel"));
         }
         public void actionPerformed(ActionEvent ev) {
             JCheckBoxMenuItem checkbox = (JCheckBoxMenuItem) ev.getSource();
             boolean alphaChannel = checkbox.isSelected();
-            Main.pref.put("wmsplugin.alpha_channel", alphaChannel);
+            PROP_ALPHA_CHANNEL.put(alphaChannel);
 
             // clear all resized cached instances and repaint the layer
             for (int x = 0; x < dax; ++x) {
@@ -379,6 +380,14 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
             }
             mv.repaint();
         }
+        public Component createMenuComponent() {
+            JCheckBoxMenuItem item = new JCheckBoxMenuItem(this);
+            item.setSelected(PROP_ALPHA_CHANNEL.get());
+            return item;
+        }
+        public boolean supportLayers(List<Layer> layers) {
+            return layers.size() == 1 && layers.get(0) instanceof WMSLayer;
+        }
     }
 
     public class SaveWmsAction extends AbstractAction {
@@ -387,11 +396,11 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         }
         public void actionPerformed(ActionEvent ev) {
             File f = SaveActionBase.createAndOpenSaveFileChooser(
-                tr("Save WMS layer"), ".wms");
+                    tr("Save WMS layer"), ".wms");
             try {
                 if (f != null) {
                     ObjectOutputStream oos = new ObjectOutputStream(
-                        new FileOutputStream(f)
+                            new FileOutputStream(f)
                     );
                     oos.writeInt(serializeFormatVersion);
                     oos.writeInt(dax);
@@ -415,7 +424,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         }
         public void actionPerformed(ActionEvent ev) {
             JFileChooser fc = DiskAccessAction.createAndOpenFileChooser(true,
-                false, tr("Load WMS layer"), "wms");
+                    false, tr("Load WMS layer"), "wms");
             if(fc == null) return;
             File f = fc.getSelectedFile();
             if (f == null) return;
@@ -426,12 +435,12 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
                 int sfv = ois.readInt();
                 if (sfv != serializeFormatVersion) {
                     JOptionPane.showMessageDialog(Main.parent,
-                        tr("Unsupported WMS file version; found {0}, expected {1}", sfv, serializeFormatVersion),
-                        tr("File Format Error"),
-                        JOptionPane.ERROR_MESSAGE);
+                            tr("Unsupported WMS file version; found {0}, expected {1}", sfv, serializeFormatVersion),
+                            tr("File Format Error"),
+                            JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                startstop.setSelected(false);
+                autoDownloadEnabled = false;
                 dax = ois.readInt();
                 day = ois.readInt();
                 imageSize = ois.readInt();
@@ -479,17 +488,39 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
             }
             Main.pref.put("wmsplugin.url."+ i +".url",baseURL );
             Main.pref.put("wmsplugin.url."+String.valueOf(i)+".name",
-                baseName + "#PPD=" + pixelPerDegree );
+                    baseName + "#PPD=" + pixelPerDegree );
             WMSPlugin.refreshMenu();
         }
+    }
+
+    private class StartStopAction extends AbstractAction implements LayerAction {
+
+        public StartStopAction() {
+            super(tr("Automatic downloading"));
+        }
+
+        public Component createMenuComponent() {
+            JCheckBoxMenuItem item = new JCheckBoxMenuItem(this);
+            item.setSelected(autoDownloadEnabled);
+            return item;
+        }
+
+        public boolean supportLayers(List<Layer> layers) {
+            return layers.size() == 1 && layers.get(0) instanceof WMSLayer;
+        }
+
+        public void actionPerformed(ActionEvent e) {
+            autoDownloadEnabled = !autoDownloadEnabled;
+        }
+
     }
 
     public void preferenceChanged(PreferenceChangeEvent event) {
         if (event.getKey().equals("wmsplugin.simultaneousConnections")) {
             executor.shutdownNow();
             executor = Executors.newFixedThreadPool(
-                Main.pref.getInteger("wmsplugin.numThreads",
-                WMSPlugin.simultaneousConnections));
+                    Main.pref.getInteger("wmsplugin.numThreads",
+                            WMSPlugin.simultaneousConnections));
         }
     }
 }
