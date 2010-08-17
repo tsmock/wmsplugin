@@ -35,7 +35,10 @@ import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.io.CacheFiles;
 import org.openstreetmap.josm.io.MirroredInputStream;
 import org.openstreetmap.josm.plugins.Plugin;
+import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.plugins.PluginInformation;
+import org.openstreetmap.josm.plugins.PluginProxy;
+import org.openstreetmap.josm.plugins.remotecontrol.RemoteControlPlugin;
 
 import wmsplugin.io.WMSLayerExporter;
 import wmsplugin.io.WMSLayerImporter;
@@ -53,9 +56,10 @@ public class WMSPlugin extends Plugin {
     static int overlapEast = 14;
     static int overlapNorth = 4;
     static int simultaneousConnections = 3;
-
     // remember state of menu item to restore on changed preferences
     static private boolean menuEnabled = false;
+
+    static boolean remoteControlAvailable = false;
 
     protected void initExporterAndImporter() {
         ExtensionFileFilter.exporters.add(new WMSLayerExporter());
@@ -64,10 +68,53 @@ public class WMSPlugin extends Plugin {
 
     public WMSPlugin(PluginInformation info) {
         super(info);
+        /*
+        System.out.println("constructor " + this.getClass().getName() + " (" + info.name +
+                " v " + info.version + " stage " + info.stage + ")");
+         */
         refreshMenu();
         cache.setExpire(CacheFiles.EXPIRE_MONTHLY, false);
         cache.setMaxSize(70, false);
         initExporterAndImporter();
+        initRemoteControl();
+    }
+
+    /**
+     * Check if remotecontrol plug-in is available and if its version is
+     * high enough and add handler for "wms" remote control command "wms".
+     */
+    private void initRemoteControl() {
+        final String remotecontrolName = "remotecontrol";
+        final String remotecontrolVersion = "22675";
+        for(PluginProxy pp: PluginHandler.pluginList)
+        {
+            PluginInformation info = pp.getPluginInformation();
+            if(remotecontrolName.equals(info.name))
+            {
+                if(remotecontrolVersion.compareTo(info.version) <= 0)
+                {
+                    remoteControlAvailable = true;
+                }
+                else
+                {
+                    System.out.println("wmsplugin: remote control plugin version is " +
+                            info.version + ", need " + remotecontrolVersion + " or newer");
+                }
+                break;
+            }
+        }
+
+        if(remoteControlAvailable)
+        {
+            System.out.println("wmsplugin: initializing remote control");
+            RemoteControlPlugin plugin =
+                (RemoteControlPlugin) PluginHandler.getPlugin(remotecontrolName);
+            plugin.addRequestHandler(WMSRemoteHandler.command, WMSRemoteHandler.class);
+        }
+        else
+        {
+            System.out.println("wmsplugin: cannot use remote control");
+        }
     }
 
     // this parses the preferences settings. preferences for the wms plugin have to
@@ -110,10 +157,10 @@ public class WMSPlugin extends Plugin {
         try {
             overlapNorth = Integer.valueOf(prefs.get("wmsplugin.url.overlapNorth"));
         } catch (Exception e) {} // If sth fails, we drop to default settings.
-               
+
         // Load the settings for number of simultaneous connections
         try {
-            simultaneousConnections = Integer.valueOf(prefs.get("wmsplugin.simultanousConnections"));
+            simultaneousConnections = Integer.valueOf(Main.pref.get("wmsplugin.simultanousConnections"));
         } catch (Exception e) {} // If sth fails, we drop to default settings.
 
         // And then the names+urls of WMS servers

@@ -76,26 +76,26 @@ public class Map_Rectifier_WMSmenuAction extends JosmAction {
 
         // Add default services
         services.add(
-            new RectifierService("Metacarta Map Rectifier",
-                "http://labs.metacarta.com/rectifier/",
-                "http://labs.metacarta.com/rectifier/wms.cgi?id=__s__&srs=EPSG:4326"
-                + "&Service=WMS&Version=1.1.0&Request=GetMap&format=image/png&",
-                // This matches more than the "classic" WMS link, so users can pretty much
-                // copy any link as long as it includes the ID
-                "labs\\.metacarta\\.com/(?:.*?)(?:/|=)([0-9]+)(?:\\?|/|\\.|$)",
+                new RectifierService("Metacarta Map Rectifier",
+                        "http://labs.metacarta.com/rectifier/",
+                        "http://labs.metacarta.com/rectifier/wms.cgi?id=__s__&srs=EPSG:4326"
+                        + "&Service=WMS&Version=1.1.0&Request=GetMap&format=image/png&",
+                        // This matches more than the "classic" WMS link, so users can pretty much
+                        // copy any link as long as it includes the ID
+                        "labs\\.metacarta\\.com/(?:.*?)(?:/|=)([0-9]+)(?:\\?|/|\\.|$)",
                 "^[0-9]+$")
         );
         services.add(
-            // TODO: Change all links to mapwarper.net once the project has moved.
-            // The RegEx already matches the new URL and old URLs will be forwarded
-            // to make the transition as smooth as possible for the users
-            new RectifierService("Geothings Map Warper",
-                "http://warper.geothings.net/",
-                "http://warper.geothings.net/maps/wms/__s__?request=GetMap&version=1.1.1"
-                + "&styles=&format=image/png&srs=epsg:4326&exceptions=application/vnd.ogc.se_inimage&",
-                // This matches more than the "classic" WMS link, so users can pretty much
-                // copy any link as long as it includes the ID
-                "(?:mapwarper\\.net|warper\\.geothings\\.net)/(?:.*?)/([0-9]+)(?:\\?|/|\\.|$)",
+                // TODO: Change all links to mapwarper.net once the project has moved.
+                // The RegEx already matches the new URL and old URLs will be forwarded
+                // to make the transition as smooth as possible for the users
+                new RectifierService("Geothings Map Warper",
+                        "http://warper.geothings.net/",
+                        "http://warper.geothings.net/maps/wms/__s__?request=GetMap&version=1.1.1"
+                        + "&styles=&format=image/png&srs=epsg:4326&exceptions=application/vnd.ogc.se_inimage&",
+                        // This matches more than the "classic" WMS link, so users can pretty much
+                        // copy any link as long as it includes the ID
+                        "(?:mapwarper\\.net|warper\\.geothings\\.net)/(?:.*?)/([0-9]+)(?:\\?|/|\\.|$)",
                 "^[0-9]+$")
         );
 

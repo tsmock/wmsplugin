@@ -39,6 +39,8 @@ public class WMSPreferenceEditor implements PreferenceSetting {
     JSpinner spinEast;
     JSpinner spinNorth;
     JSpinner spinSimConn;
+    JCheckBox remoteCheckBox;
+    boolean allowRemoteControl = true;
 
     public void addGui(final PreferenceTabbedPane gui) {
         JPanel p = gui.createPreferenceTab("wms", tr("WMS Plugin Preferences"), tr("Modify list of WMS servers displayed in the WMS plugin menu"));
@@ -55,7 +57,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         }
 
         final DefaultTableModel modeldef = new DefaultTableModel(
-        new String[]{tr("Menu Name (Default)"), tr("WMS URL (Default)")}, 0);
+                new String[]{tr("Menu Name (Default)"), tr("WMS URL (Default)")}, 0);
         final JTable listdef = new JTable(modeldef){
             @Override
             public boolean isCellEditable(int row,int column){return false;}
@@ -119,7 +121,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
                             tr("Please select at least one row to copy."),
                             tr("Information"),
                             JOptionPane.INFORMATION_MESSAGE
-                            );
+                    );
                     return;
                 }
 
@@ -154,9 +156,9 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         p.add(scrolldef, GBC.eol().insets(0,5,0,0).fill(GridBagConstraints.BOTH));
 
         browser = new JComboBox(new String[]{
-        "webkit-image {0}",
-        "gnome-web-photo --mode=photo --format=png {0} /dev/stdout",
-        "gnome-web-photo-fixed {0}",
+                "webkit-image {0}",
+                "gnome-web-photo --mode=photo --format=png {0} /dev/stdout",
+                "gnome-web-photo-fixed {0}",
         "webkit-image-gtk {0}"});
         browser.setEditable(true);
         browser.setSelectedItem(Main.pref.get("wmsplugin.browser", "webkit-image {0}"));
@@ -180,7 +182,7 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         overlapPanel.add(spinNorth);
 
         p.add(overlapPanel);
-               
+
         // Simultaneous connections
         p.add(Box.createHorizontalGlue(), GBC.eol().fill(GridBagConstraints.HORIZONTAL));
         JLabel labelSimConn = new JLabel(tr("Simultaneous connections"));
@@ -188,7 +190,16 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         JPanel overlapPanelSimConn = new JPanel(new FlowLayout());
         overlapPanelSimConn.add(labelSimConn);
         overlapPanelSimConn.add(spinSimConn);
-        p.add(overlapPanelSimConn);
+        p.add(overlapPanelSimConn, GBC.eol().fill(GridBagConstraints.HORIZONTAL));
+
+
+        allowRemoteControl = Main.pref.getBoolean("wmsplugin.remotecontrol", true);
+        remoteCheckBox = new JCheckBox(tr("Allow remote control (reqires remotecontrol plugin)"), allowRemoteControl );
+        JPanel remotePanel = new JPanel(new FlowLayout());
+        remotePanel.add(remoteCheckBox);
+
+        p.add(remotePanel);
+
     }
 
     public boolean ok() {
@@ -232,13 +243,16 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         WMSPlugin.overlapEast = (Integer) spinEast.getModel().getValue();
         WMSPlugin.overlapNorth = (Integer) spinNorth.getModel().getValue();
         WMSPlugin.simultaneousConnections = (Integer) spinSimConn.getModel().getValue();
+        allowRemoteControl = remoteCheckBox.getModel().isSelected();
 
         Main.pref.put("wmsplugin.url.overlap",    String.valueOf(WMSPlugin.doOverlap));
         Main.pref.put("wmsplugin.url.overlapEast", String.valueOf(WMSPlugin.overlapEast));
         Main.pref.put("wmsplugin.url.overlapNorth", String.valueOf(WMSPlugin.overlapNorth));
 
-        Main.pref.put("wmsplugin.browser", browser.getEditor().getItem().toString()); 
+        Main.pref.put("wmsplugin.browser", browser.getEditor().getItem().toString());
         Main.pref.put("wmsplugin.simultaneousConnections", String.valueOf(WMSPlugin.simultaneousConnections));
+
+        Main.pref.put("wmsplugin.remotecontrol",    String.valueOf(allowRemoteControl));
         return false;
     }
 
