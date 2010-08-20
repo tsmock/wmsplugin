@@ -1,12 +1,5 @@
 package wmsplugin;
 
-import static org.openstreetmap.josm.tools.I18n.tr;
-
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.image.BufferedImage;
-
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
@@ -14,41 +7,46 @@ import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.io.CacheFiles;
 
-abstract public class Grabber extends Thread {
+import wmsplugin.GeorefImage.State;
+
+abstract public class Grabber implements Runnable {
+    protected final MapView mv;
+    protected final WMSLayer layer;
+    protected final CacheFiles cache;
+
     protected ProjectionBounds b;
     protected Projection proj;
     protected double pixelPerDegree;
-    protected MapView mv;
-    protected WMSLayer layer;
-    protected GeorefImage image;
-    protected CacheFiles cache;
+    protected volatile boolean canceled;
 
-    Grabber(ProjectionBounds b, GeorefImage image, MapView mv, WMSLayer layer, CacheFiles cache)
-    {
-        if (b.min != null && b.max != null && WMSPlugin.doOverlap) { 
-            double eastSize =  b.max.east() - b.min.east(); 
-            double northSize =  b.max.north() - b.min.north(); 
-
-            double eastCoef = WMSPlugin.overlapEast / 100.0; 
-            double northCoef = WMSPlugin.overlapNorth / 100.0; 
-
-            this.b = new ProjectionBounds( new EastNorth(b.min.east(),
-                                            b.min.north()), 
-                                 new EastNorth(b.max.east() + eastCoef * eastSize, 
-                                            b.max.north() + northCoef * northSize));
-        } else 
-           this.b = b;
-
-        this.proj = Main.proj;
-        this.pixelPerDegree = layer.pixelPerDegree;
-        this.image = image;
+    Grabber(MapView mv, WMSLayer layer, CacheFiles cache) {
         this.mv = mv;
         this.layer = layer;
         this.cache = cache;
-
     }
 
-    abstract void fetch() throws Exception; // the image fetch code
+    private void updateState(WMSRequest request) {
+        b = new ProjectionBounds(
+                layer.getEastNorth(request.getXIndex(), request.getYIndex()),
+                layer.getEastNorth(request.getXIndex() + 1, request.getYIndex() + 1));
+        if (b.min != null && b.max != null && WMSPlugin.doOverlap) {
+            double eastSize =  b.max.east() - b.min.east();
+            double northSize =  b.max.north() - b.min.north();
+
+            double eastCoef = WMSPlugin.overlapEast / 100.0;
+            double northCoef = WMSPlugin.overlapNorth / 100.0;
+
+            this.b = new ProjectionBounds( new EastNorth(b.min.east(),
+                    b.min.north()),
+                    new EastNorth(b.max.east() + eastCoef * eastSize,
+                            b.max.north() + northCoef * northSize));
+        }
+
+        this.proj = Main.proj;
+        this.pixelPerDegree = request.getPixelPerDegree();
+    }
+
+    abstract void fetch(WMSRequest request) throws Exception; // the image fetch code
 
     int width(){
         return (int) ((b.max.north() - b.min.north()) * pixelPerDegree);
@@ -57,54 +55,49 @@ abstract public class Grabber extends Thread {
         return (int) ((b.max.east() - b.min.east()) * pixelPerDegree);
     }
 
-    protected void grabError(Exception e){ // report error when grabing image
-        e.printStackTrace();
-
-        BufferedImage img = new BufferedImage(width(), height(), BufferedImage.TYPE_INT_ARGB);
-        Graphics g = img.getGraphics();
-        g.setColor(Color.RED);
-        g.fillRect(0, 0, width(), height());
-        Font font = g.getFont();
-        Font tempFont = font.deriveFont(Font.PLAIN).deriveFont(36.0f);
-        g.setFont(tempFont);
-        g.setColor(Color.BLACK);
-        g.drawString(tr("Exception occurred"), 10, height()/2);
-        image.image = img;
-        image.flushedResizedCachedInstance();
-        image.failed = true;
-        image.downloadingStarted = false;
-        g.setFont(font);
+    @Override
+    public void run() {
+        while (true) {
+            if (canceled) {
+                return;
+            }
+            WMSRequest request = layer.getRequest();
+            if (request == null) {
+                return;
+            }
+            updateState(request);
+            if(!loadFromCache(request)){
+                attempt(request);
+            }
+            if (canceled) {
+                return;
+            }
+            layer.finishRequest(request);
+            mv.repaint();
+        }
     }
 
-    protected void grabNotInCache(){ // report not in cache
-        BufferedImage img = new BufferedImage(width(), height(), BufferedImage.TYPE_INT_ARGB);
-        Graphics g = img.getGraphics();
-        g.setColor(Color.GRAY);
-        g.fillRect(0, 0, width(), height());
-        Font font = g.getFont();
-        Font tempFont = font.deriveFont(Font.PLAIN).deriveFont(36.0f);
-        g.setFont(tempFont);
-        g.setColor(Color.BLACK);
-        g.drawString(tr("Not in cache"), 10, height()/2);
-        image.image = img;
-        image.flushedResizedCachedInstance();
-        image.infotext = true;
-        image.downloadingStarted = false;
-        g.setFont(font);
-    }
-
-    protected void attempt(){ // try to fetch the image
+    protected void attempt(WMSRequest request){ // try to fetch the image
         int maxTries = 5; // n tries for every image
         for (int i = 1; i <= maxTries; i++) {
+            if (canceled) {
+                return;
+            }
             try {
-                fetch();
+                if (!layer.requestIsValid(request)) {
+                    return;
+                }
+                fetch(request);
                 break; // break out of the retry loop
             } catch (Exception e) {
                 try { // sleep some time and then ask the server again
                     Thread.sleep(random(1000, 2000));
                 } catch (InterruptedException e1) {}
 
-                if(i == maxTries) grabError(e);
+                if(i == maxTries) {
+                    e.printStackTrace();
+                    request.finish(State.FAILED, null);
+                }
             }
         }
     }
@@ -113,5 +106,9 @@ abstract public class Grabber extends Thread {
         return (int)(Math.random() * ((max+1)-min) ) + min;
     }
 
-    abstract public boolean loadFromCache(boolean real);
+    abstract public boolean loadFromCache(WMSRequest request);
+
+    public void cancel() {
+        canceled = true;
+    }
 }

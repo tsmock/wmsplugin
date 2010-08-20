@@ -10,13 +10,12 @@ import java.util.StringTokenizer;
 import javax.imageio.ImageIO;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.io.CacheFiles;
 
 public class HTMLGrabber extends WMSGrabber {
-    HTMLGrabber(ProjectionBounds b, GeorefImage image, MapView mv, WMSLayer layer, CacheFiles cache) {
-        super(b, image, mv, layer, cache);
+    HTMLGrabber(MapView mv, WMSLayer layer, CacheFiles cache) {
+        super(mv, layer, cache);
         this.baseURL = layer.baseURL.replaceFirst("html:", "");
     }
 
@@ -28,7 +27,7 @@ public class HTMLGrabber extends WMSGrabber {
 
         ArrayList<String> cmdParams = new ArrayList<String>();
         StringTokenizer st = new StringTokenizer(MessageFormat.format(
-        Main.pref.get("wmsplugin.browser", "webkit-image {0}"), urlstring));
+                Main.pref.get("wmsplugin.browser", "webkit-image {0}"), urlstring));
         while( st.hasMoreTokens() )
             cmdParams.add(st.nextToken());
 

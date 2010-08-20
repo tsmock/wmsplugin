@@ -22,15 +22,16 @@ import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.ProjectionBounds;
+import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.projection.Mercator;
-import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.io.CacheFiles;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.io.ProgressInputStream;
+
+import wmsplugin.GeorefImage.State;
 
 
 public class WMSGrabber extends Grabber {
@@ -41,36 +42,23 @@ public class WMSGrabber extends Grabber {
     protected String baseURL;
     private final boolean urlWithPatterns;
 
-    WMSGrabber(ProjectionBounds b, GeorefImage image, MapView mv, WMSLayer layer, CacheFiles cache) {
-        super(b, image, mv, layer, cache);
+    WMSGrabber(MapView mv, WMSLayer layer, CacheFiles cache) {
+        super(mv, layer, cache);
         this.baseURL = layer.baseURL;
         /* URL containing placeholders? */
         urlWithPatterns = isUrlWithPatterns(baseURL);
     }
 
     @Override
-    public void run() {
-        attempt();
-        mv.repaint();
-    }
-
-    @Override
-    void fetch() throws Exception{
+    void fetch(WMSRequest request) throws Exception{
         URL url = null;
         try {
             url = getURL(
-                b.min.east(), b.min.north(),
-                b.max.east(), b.max.north(),
-                width(), height());
+                    b.min.east(), b.min.north(),
+                    b.max.east(), b.max.north(),
+                    width(), height());
+            request.finish(State.IMAGE, grab(url));
 
-            image.min = b.min;
-            image.max = b.max;
-
-            if(image.isVisible(mv, layer.getDx(), layer.getDy())) { //don't download, if the image isn't visible already
-                image.image = grab(url);
-                image.flushedResizedCachedInstance();
-            }
-            image.downloadingStarted = false;
         } catch(Exception e) {
             e.printStackTrace();
             throw new Exception(e.getMessage() + "\nImage couldn't be fetched: " + (url != null ? url.toString() : ""));
@@ -96,9 +84,9 @@ public class WMSGrabber extends Grabber {
 
         String str = baseURL;
         String bbox = latLonFormat.format(w) + ","
-                           + latLonFormat.format(s) + ","
-                           + latLonFormat.format(e) + ","
-                           + latLonFormat.format(n);
+        + latLonFormat.format(s) + ","
+        + latLonFormat.format(e) + ","
+        + latLonFormat.format(n);
 
         if (urlWithPatterns) {
             str = str.replaceAll("\\{proj\\}", myProj)
@@ -111,8 +99,8 @@ public class WMSGrabber extends Grabber {
             .replaceAll("\\{height\\}", String.valueOf(ht));
         } else {
             str += "bbox=" + bbox
-                + getProjection(baseURL, false)
-                + "&width=" + wi + "&height=" + ht;
+            + getProjection(baseURL, false)
+            + "&width=" + wi + "&height=" + ht;
             if (!(baseURL.endsWith("&") || baseURL.endsWith("?"))) {
                 System.out.println(tr("Warning: The base URL ''{0}'' for a WMS service doesn't have a trailing '&' or a trailing '?'.", baseURL));
                 System.out.println(tr("Warning: Fetching WMS tiles is likely to fail. Please check you preference settings."));
@@ -137,11 +125,11 @@ public class WMSGrabber extends Grabber {
                 if(!projname.equals(m.group(1)) && warn)
                 {
                     JOptionPane.showMessageDialog(Main.parent,
-                    tr("The projection ''{0}'' in URL and current projection ''{1}'' mismatch.\n"
-                    + "This may lead to wrong coordinates.",
-                    m.group(1), projname),
-                    tr("Warning"),
-                    JOptionPane.WARNING_MESSAGE);
+                            tr("The projection ''{0}'' in URL and current projection ''{1}'' mismatch.\n"
+                                    + "This may lead to wrong coordinates.",
+                                    m.group(1), projname),
+                                    tr("Warning"),
+                                    JOptionPane.WARNING_MESSAGE);
                 }
             }
             else
@@ -154,28 +142,24 @@ public class WMSGrabber extends Grabber {
     }
 
     @Override
-    public boolean loadFromCache(boolean real){
+    public boolean loadFromCache(WMSRequest request) {
         URL url = null;
         try{
-           url = getURL(
-              b.min.east(), b.min.north(),
-              b.max.east(), b.max.north(),
-              width(), height());
+            url = getURL(
+                    b.min.east(), b.min.north(),
+                    b.max.east(), b.max.north(),
+                    width(), height());
         } catch(Exception e) {
-           return false;
+            return false;
         }
         BufferedImage cached = cache.getImg(url.toString());
-        if((!real && !layer.hasAutoDownload()) || cached != null){
-           image.min = b.min;
-           image.max = b.max;
-           if(cached == null){
-              grabNotInCache();
-              return true;
-           }
-           image.image = cached;
-           image.flushedResizedCachedInstance();
-           image.downloadingStarted = false;
-           return true;
+        if((!request.isReal() && !layer.hasAutoDownload()) || cached != null){
+            if(cached == null){
+                request.finish(State.NOT_IN_CACHE, null);
+                return true;
+            }
+            request.finish(State.IMAGE, cached);
+            return true;
         }
         return false;
     }
