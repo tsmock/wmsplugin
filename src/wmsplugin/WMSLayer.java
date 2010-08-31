@@ -152,6 +152,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     @Override
     public void destroy() {
         cancelGrabberThreads(false);
+        Main.pref.removePreferenceChangeListener(this);
     }
 
     public void initializeImages() {
