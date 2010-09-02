@@ -5,7 +5,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.HashMap;
@@ -21,7 +20,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
-import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
@@ -77,20 +75,13 @@ public class WMSPreferenceEditor implements PreferenceSetting {
         buttonPanel.add(add, GBC.std().insets(0,5,0,0));
         add.addActionListener(new ActionListener(){
             public void actionPerformed(ActionEvent e) {
-                JPanel p = new JPanel(new GridBagLayout());
-                p.add(new JLabel(tr("Menu Name")), GBC.std().insets(0,0,5,0));
-                JTextField key = new JTextField(40);
-                JTextField value = new JTextField(40);
-                p.add(key, GBC.eop().insets(5,0,0,0).fill(GridBagConstraints.HORIZONTAL));
-                p.add(new JLabel(tr("WMS URL")), GBC.std().insets(0,0,5,0));
-                p.add(value, GBC.eol().insets(5,0,0,0).fill(GridBagConstraints.HORIZONTAL));
+                AddWMSLayerPanel p = new AddWMSLayerPanel();
                 int answer = JOptionPane.showConfirmDialog(
                         gui, p,
-                        tr("Enter a menu name and WMS URL"),
-                        JOptionPane.OK_CANCEL_OPTION,
-                        JOptionPane.QUESTION_MESSAGE);
+                        tr("Add WMS URL"),
+                        JOptionPane.OK_CANCEL_OPTION);
                 if (answer == JOptionPane.OK_OPTION) {
-                    model.addRow(new String[]{key.getText(), value.getText()});
+                    model.addRow(new String[]{p.getUrlName(), p.getUrl()});
                 }
             }
         });
