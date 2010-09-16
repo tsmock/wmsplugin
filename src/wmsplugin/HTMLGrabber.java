@@ -16,7 +16,6 @@ import org.openstreetmap.josm.io.CacheFiles;
 public class HTMLGrabber extends WMSGrabber {
     HTMLGrabber(MapView mv, WMSLayer layer, CacheFiles cache) {
         super(mv, layer, cache);
-        this.baseURL = layer.baseURL.replaceFirst("html:", "");
     }
 
     @Override

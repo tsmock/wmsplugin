@@ -30,12 +30,12 @@ abstract public class Grabber implements Runnable {
         b = new ProjectionBounds(
                 layer.getEastNorth(request.getXIndex(), request.getYIndex()),
                 layer.getEastNorth(request.getXIndex() + 1, request.getYIndex() + 1));
-        if (b.min != null && b.max != null && WMSPlugin.PROP_OVERLAP.get()) {
+        if (b.min != null && b.max != null && WMSPlugin.instance.PROP_OVERLAP.get()) {
             double eastSize =  b.max.east() - b.min.east();
             double northSize =  b.max.north() - b.min.north();
 
-            double eastCoef = WMSPlugin.PROP_OVERLAP_EAST.get() / 100.0;
-            double northCoef = WMSPlugin.PROP_OVERLAP_NORTH.get() / 100.0;
+            double eastCoef = WMSPlugin.instance.PROP_OVERLAP_EAST.get() / 100.0;
+            double northCoef = WMSPlugin.instance.PROP_OVERLAP_NORTH.get() / 100.0;
 
             this.b = new ProjectionBounds( new EastNorth(b.min.east(),
                     b.min.north()),

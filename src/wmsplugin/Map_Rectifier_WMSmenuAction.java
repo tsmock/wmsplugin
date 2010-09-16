@@ -209,20 +209,9 @@ public class Map_Rectifier_WMSmenuAction extends JosmAction {
      * Adds a WMS Layer with given title and URL
      * @param title: Name of the layer as it will shop up in the layer manager
      * @param url: URL to the WMS server
-     * @param cookies: Cookies to send with each image request (Format: josm=is; very=cool)
-     */
-    private void addWMSLayer(String title, String url, String cookies) {
-        WMSLayer wmsLayer = new WMSLayer(title, url, cookies);
-        Main.main.addLayer(wmsLayer);
-    }
-
-    /**
-     * Adds a WMS Layer with given title and URL
-     * @param title: Name of the layer as it will shop up in the layer manager
-     * @param url: URL to the WMS server
      */
     private void addWMSLayer(String title, String url) {
-        addWMSLayer(title, url, "");
+        Main.main.addLayer(new WMSLayer(new WMSInfo(title, url)));
     }
 
     /**

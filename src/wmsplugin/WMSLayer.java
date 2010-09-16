@@ -57,6 +57,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         new ImageIcon(Toolkit.getDefaultToolkit().createImage(WMSPlugin.class.getResource("/images/wms_small.png")));
 
     public static final BooleanProperty PROP_ALPHA_CHANNEL = new BooleanProperty("wmsplugin.alpha_channel", true);
+    WMSPlugin plugin = WMSPlugin.instance;
 
     public int messageNum = 5; //limit for messages per layer
     protected MapView mv;
@@ -70,13 +71,11 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     protected double dx = 0.0;
     protected double dy = 0.0;
 
-    protected double pixelPerDegree;
     protected GeorefImage[][] images;
-    protected String baseURL;
-    protected String cookies;
     protected final int serializeFormatVersion = 5;
     protected boolean autoDownloadEnabled = true;
     protected boolean settingsChanged;
+    protected WMSInfo info;
 
     // Image index boundary for current view
     private volatile int bminx;
@@ -104,47 +103,42 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     private boolean isInvalidUrlConfirmed = false;
 
     public WMSLayer() {
-        this(tr("Blank Layer"), null, null);
-        initializeImages();
-        mv = Main.map.mapView;
+        this(new WMSInfo(tr("Blank Layer")));
     }
 
-    public WMSLayer(String name, String baseURL, String cookies) {
-        super(name);
+    public WMSLayer(WMSInfo info) {
+        super(info.name);
         setBackgroundLayer(true); /* set global background variable */
         initializeImages();
-        this.baseURL = baseURL;
-        this.cookies = cookies;
-        WMSGrabber.getProjection(baseURL, true);
+        this.info = new WMSInfo(info);
         mv = Main.map.mapView;
-
-        // quick hack to predefine the PixelDensity to reuse the cache
-        int codeIndex = getName().indexOf("#PPD=");
-        if (codeIndex != -1) {
-            pixelPerDegree = Double.valueOf(getName().substring(codeIndex+5));
-        } else {
-            pixelPerDegree = getPPD();
-        }
+        if(this.info.pixelPerDegree == 0.0)
+            this.info.setPixelPerDegree(getPPD());
         resolution = mv.getDist100PixelText();
 
-        if(baseURL != null)
-        {
+        if(info.url != null) {
+            WMSGrabber.getProjection(info.url, true);
             startGrabberThreads();
-        }
-        if (baseURL != null && !baseURL.startsWith("html:") && !WMSGrabber.isUrlWithPatterns(baseURL)) {
-            if (!(baseURL.endsWith("&") || baseURL.endsWith("?"))) {
-                if (!confirmMalformedUrl(baseURL)) {
-                    System.out.println(tr("Warning: WMS layer deactivated because of malformed base url ''{0}''", baseURL));
-                    usesInvalidUrl = true;
-                    setName(getName() + tr("(deactivated)"));
-                    return;
-                } else {
-                    isInvalidUrlConfirmed = true;
+            if(!info.url.startsWith("html:") && !WMSGrabber.isUrlWithPatterns(info.url)) {
+                if (!(info.url.endsWith("&") || info.url.endsWith("?"))) {
+                    if (!confirmMalformedUrl(info.url)) {
+                        System.out.println(tr("Warning: WMS layer deactivated because of malformed base url ''{0}''", info.url));
+                        usesInvalidUrl = true;
+                        setName(getName() + tr("(deactivated)"));
+                        return;
+                    } else {
+                        isInvalidUrlConfirmed = true;
+                    }
                 }
             }
         }
 
         Main.pref.addPreferenceChangeListener(this);
+    }
+
+    public void doSetName(String name) {
+        setName(name);
+        info.name = name;
     }
 
     public boolean hasAutoDownload(){
@@ -202,12 +196,11 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
 
     private boolean zoomIsTooBig() {
         //don't download when it's too outzoomed
-        return pixelPerDegree / getPPD() > minZoom;
+        return info.pixelPerDegree / getPPD() > minZoom;
     }
 
     @Override public void paint(Graphics2D g, final MapView mv, Bounds b) {
-        if(baseURL == null) return;
-        if (usesInvalidUrl && !isInvalidUrlConfirmed) return;
+        if(info.url == null || (usesInvalidUrl && !isInvalidUrlConfirmed)) return;
 
         settingsChanged = false;
 
@@ -272,28 +265,28 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     }
 
     public int getImageXIndex(double coord) {
-        return (int)Math.floor( ((coord - dx) * pixelPerDegree) / imageSize);
+        return (int)Math.floor( ((coord - dx) * info.pixelPerDegree) / imageSize);
     }
 
     public int getImageYIndex(double coord) {
-        return (int)Math.floor( ((coord - dy) * pixelPerDegree) / imageSize);
+        return (int)Math.floor( ((coord - dy) * info.pixelPerDegree) / imageSize);
     }
 
     public int getImageX(int imageIndex) {
-        return (int)(imageIndex * imageSize * (getPPD() / pixelPerDegree) + dx * getPPD());
+        return (int)(imageIndex * imageSize * (getPPD() / info.pixelPerDegree) + dx * getPPD());
     }
 
     public int getImageY(int imageIndex) {
-        return (int)(imageIndex * imageSize * (getPPD() / pixelPerDegree) + dy * getPPD());
+        return (int)(imageIndex * imageSize * (getPPD() / info.pixelPerDegree) + dy * getPPD());
     }
 
     public int getImageWidth(int xIndex) {
-        int overlap = (int)(WMSPlugin.PROP_OVERLAP.get()?WMSPlugin.PROP_OVERLAP_EAST.get() * imageSize * getPPD() / pixelPerDegree / 100:0);
+        int overlap = (int)(plugin.PROP_OVERLAP.get()?plugin.PROP_OVERLAP_EAST.get() * imageSize * getPPD() / info.pixelPerDegree / 100:0);
         return getImageX(xIndex + 1) - getImageX(xIndex) + overlap;
     }
 
     public int getImageHeight(int yIndex) {
-        int overlap = (int)(WMSPlugin.PROP_OVERLAP.get()?WMSPlugin.PROP_OVERLAP_NORTH.get() * imageSize * getPPD() / pixelPerDegree / 100:0);
+        int overlap = (int)(plugin.PROP_OVERLAP.get()?plugin.PROP_OVERLAP_NORTH.get() * imageSize * getPPD() / info.pixelPerDegree / 100:0);
         return getImageY(yIndex + 1) - getImageY(yIndex) + overlap;
     }
 
@@ -302,7 +295,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
      * @return Size of image in original zoom
      */
     public int getBaseImageWidth() {
-        int overlap = (WMSPlugin.PROP_OVERLAP.get()?WMSPlugin.PROP_OVERLAP_EAST.get() * imageSize / 100:0);
+        int overlap = (plugin.PROP_OVERLAP.get()?plugin.PROP_OVERLAP_EAST.get() * imageSize / 100:0);
         return imageSize + overlap;
     }
 
@@ -311,7 +304,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
      * @return Size of image in original zoom
      */
     public int getBaseImageHeight() {
-        int overlap = (WMSPlugin.PROP_OVERLAP.get()?WMSPlugin.PROP_OVERLAP_NORTH.get() * imageSize / 100:0);
+        int overlap = (plugin.PROP_OVERLAP.get()?plugin.PROP_OVERLAP_NORTH.get() * imageSize / 100:0);
         return imageSize + overlap;
     }
 
@@ -323,7 +316,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
      * @return Real EastNorth of given tile. dx/dy is not counted in
      */
     public EastNorth getEastNorth(int xIndex, int yIndex) {
-        return new EastNorth((xIndex * imageSize) / pixelPerDegree, (yIndex * imageSize) / pixelPerDegree);
+        return new EastNorth((xIndex * imageSize) / info.pixelPerDegree, (yIndex * imageSize) / info.pixelPerDegree);
     }
 
 
@@ -358,7 +351,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
             for(int y = bminy; y<=bmaxy; ++y){
                 GeorefImage img = images[modulo(x,dax)][modulo(y,day)];
                 if (!img.paint(g, mv, x, y, leftEdge, bottomEdge)) {
-                    WMSRequest request = new WMSRequest(x, y, pixelPerDegree, real);
+                    WMSRequest request = new WMSRequest(x, y, info.pixelPerDegree, real);
                     addRequest(request);
                 }
             }
@@ -416,7 +409,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
      * @return -1 if request is no longer needed, otherwise priority of request (lower number <=> more important request)
      */
     private int getRequestPriority(WMSRequest request) {
-        if (request.getPixelPerDegree() != pixelPerDegree) {
+        if (request.getPixelPerDegree() != info.pixelPerDegree) {
             return -1;
         }
         if (bminx > request.getXIndex()
@@ -547,7 +540,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         public void actionPerformed(ActionEvent ev) {
             initializeImages();
             resolution = mv.getDist100PixelText();
-            pixelPerDegree = getPPD();
+            info.setPixelPerDegree(getPPD());
             settingsChanged = true;
             mv.repaint();
         }
@@ -560,13 +553,13 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
         public void actionPerformed(ActionEvent ev) {
             // Delete small files, because they're probably blank tiles.
             // See https://josm.openstreetmap.de/ticket/2307
-            WMSPlugin.cache.customCleanUp(CacheFiles.CLEAN_SMALL_FILES, 4096);
+            plugin.cache.customCleanUp(CacheFiles.CLEAN_SMALL_FILES, 4096);
 
             for (int x = 0; x < dax; ++x) {
                 for (int y = 0; y < day; ++y) {
                     GeorefImage img = images[modulo(x,dax)][modulo(y,day)];
                     if(img.getState() == State.FAILED){
-                        addRequest(new WMSRequest(img.getXIndex(), img.getYIndex(), pixelPerDegree, true));
+                        addRequest(new WMSRequest(img.getXIndex(), img.getYIndex(), info.pixelPerDegree, true));
                         mv.repaint();
                     }
                 }
@@ -618,9 +611,9 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
                     oos.writeInt(dax);
                     oos.writeInt(day);
                     oos.writeInt(imageSize);
-                    oos.writeDouble(pixelPerDegree);
-                    oos.writeObject(getName());
-                    oos.writeObject(baseURL);
+                    oos.writeDouble(info.pixelPerDegree);
+                    oos.writeObject(info.name);
+                    oos.writeObject(info.getFullURL());
                     oos.writeObject(images);
                     oos.close();
                 }
@@ -656,9 +649,9 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
                 dax = ois.readInt();
                 day = ois.readInt();
                 imageSize = ois.readInt();
-                pixelPerDegree = ois.readDouble();
-                setName((String)ois.readObject());
-                baseURL = (String) ois.readObject();
+                info.setPixelPerDegree(ois.readDouble());
+                doSetName((String)ois.readObject());
+                info.setURL((String) ois.readObject());
                 images = (GeorefImage[][])ois.readObject();
                 ois.close();
                 fis.close();
@@ -671,7 +664,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
                 }
                 settingsChanged = true;
                 mv.repaint();
-                if(baseURL != null)
+                if(info.url != null)
                 {
                     startGrabberThreads();
                 }
@@ -697,23 +690,7 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
             super(tr("Set WMS Bookmark"));
         }
         public void actionPerformed(ActionEvent ev) {
-            int i = 0;
-            while (Main.pref.hasKey("wmsplugin.url."+i+".url")) {
-                i++;
-            }
-            String baseName;
-            // cut old parameter
-            int parameterIndex = getName().indexOf("#PPD=");
-            if (parameterIndex != -1) {
-                baseName = getName().substring(0,parameterIndex);
-            }
-            else {
-                baseName = getName();
-            }
-            Main.pref.put("wmsplugin.url."+ i +".url",baseURL );
-            Main.pref.put("wmsplugin.url."+String.valueOf(i)+".name",
-                    baseName + "#PPD=" + pixelPerDegree );
-            WMSPlugin.refreshMenu();
+            plugin.addLayer(new WMSInfo(info));
         }
     }
 
@@ -765,14 +742,14 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     }
 
     private void startGrabberThreads() {
-        int threadCount = WMSPlugin.PROP_SIMULTANEOUS_CONNECTIONS.get();
+        int threadCount = plugin.PROP_SIMULTANEOUS_CONNECTIONS.get();
         requestQueueLock.lock();
         try {
             canceled = false;
             grabbers.clear();
             grabberThreads.clear();
             for (int i=0; i<threadCount; i++) {
-                Grabber grabber = WMSPlugin.getGrabber(mv, this);
+                Grabber grabber = plugin.getGrabber(mv, this);
                 grabbers.add(grabber);
                 Thread t = new Thread(grabber, "WMS " + getName() + " " + i);
                 t.setDaemon(true);
@@ -797,13 +774,13 @@ public class WMSLayer extends Layer implements PreferenceChangedListener {
     }
 
     public void preferenceChanged(PreferenceChangeEvent event) {
-        if (event.getKey().equals(WMSPlugin.PROP_SIMULTANEOUS_CONNECTIONS.getKey())) {
+        if (event.getKey().equals(plugin.PROP_SIMULTANEOUS_CONNECTIONS.getKey())) {
             cancelGrabberThreads(true);
             startGrabberThreads();
         } else if (
-                event.getKey().equals(WMSPlugin.PROP_OVERLAP.getKey())
-                || event.getKey().equals(WMSPlugin.PROP_OVERLAP_EAST.getKey())
-                || event.getKey().equals(WMSPlugin.PROP_OVERLAP_NORTH.getKey())) {
+                event.getKey().equals(plugin.PROP_OVERLAP.getKey())
+                || event.getKey().equals(plugin.PROP_OVERLAP_EAST.getKey())
+                || event.getKey().equals(plugin.PROP_OVERLAP_NORTH.getKey())) {
             for (int i=0; i<images.length; i++) {
                 for (int k=0; k<images[i].length; k++) {
                     images[i][k] = new GeorefImage(this);

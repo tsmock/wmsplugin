@@ -43,14 +43,10 @@ public class WMSRemoteHandler extends RequestHandler {
         String title = args.get("title");
         if((title == null) || (title.length() == 0))
         {
-            title = "remote WMS";
+            title = tr("Remote WMS");
         }
         String cookies = args.get("cookies");
-        if(cookies == null)
-        {
-            cookies = "";
-        }
-        WMSLayer wmsLayer = new WMSLayer(title, url, cookies);
+        WMSLayer wmsLayer = new WMSLayer(new WMSInfo(title, url, cookies));
         Main.main.addLayer(wmsLayer);
 
     }

@@ -44,7 +44,7 @@ public class WMSGrabber extends Grabber {
 
     WMSGrabber(MapView mv, WMSLayer layer, CacheFiles cache) {
         super(mv, layer, cache);
-        this.baseURL = layer.baseURL;
+        this.baseURL = layer.info.url;
         /* URL containing placeholders? */
         urlWithPatterns = isUrlWithPatterns(baseURL);
     }
@@ -168,8 +168,8 @@ public class WMSGrabber extends Grabber {
         System.out.println("Grabbing WMS " + url);
 
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        if(layer.cookies != null && !layer.cookies.equals(""))
-            conn.setRequestProperty("Cookie", layer.cookies);
+        if(layer.info.cookies != null && !layer.info.cookies.equals(""))
+            conn.setRequestProperty("Cookie", layer.info.cookies);
         conn.setRequestProperty("User-Agent", Main.pref.get("wmsplugin.user_agent", Version.getInstance().getAgentString()));
         conn.setConnectTimeout(Main.pref.getInteger("wmsplugin.timeout.connect", 30) * 1000);
         conn.setReadTimeout(Main.pref.getInteger("wmsplugin.timeout.read", 30) * 1000);
