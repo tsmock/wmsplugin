@@ -217,6 +217,14 @@ public class AddWMSLayerPanel extends JPanel {
         return b.toString();
     }
 
+    private void showError(String incomingData, Exception e) {
+        JOptionPane.showMessageDialog(this, tr("Could not parse WMS layer list."),
+                tr("WMS Error"), JOptionPane.ERROR_MESSAGE);
+        System.err.println("Could not parse WMS layer list. Incoming data:");
+        System.err.println(incomingData);
+        e.printStackTrace();
+    }
+
     private void attemptGetCapabilities(String serviceUrlStr) {
         URL getCapabilitiesUrl = null;
         try {
@@ -269,16 +277,13 @@ public class AddWMSLayerPanel extends JPanel {
             });
             document = builder.parse(new InputSource(new StringReader(incomingData)));
         } catch (ParserConfigurationException e) {
-            JOptionPane.showMessageDialog(this, tr("Could not parse WMS layer list."),
-                    tr("WMS Error"), JOptionPane.ERROR_MESSAGE);
+            showError(incomingData, e);
             return;
         } catch (SAXException e) {
-            JOptionPane.showMessageDialog(this, tr("Could not parse WMS layer list."),
-                    tr("WMS Error"), JOptionPane.ERROR_MESSAGE);
+            showError(incomingData, e);
             return;
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, tr("Could not parse WMS layer list."),
-                    tr("WMS Error"), JOptionPane.ERROR_MESSAGE);
+            showError(incomingData, e);
             return;
         }
 
@@ -290,12 +295,14 @@ public class AddWMSLayerPanel extends JPanel {
         child = getChild(child, "HTTP");
         child = getChild(child, "Get");
         child = getChild(child, "OnlineResource");
-        String baseURL = child.getAttribute("xlink:href");
-        if(baseURL != null) {
-            try {
-                System.out.println("GetCapabilities specifies a different service URL: " + baseURL);
-                serviceUrl = new URL(baseURL);
-            } catch (MalformedURLException e1) {
+        if (child != null) {
+            String baseURL = child.getAttribute("xlink:href");
+            if(baseURL != null) {
+                try {
+                    System.out.println("GetCapabilities specifies a different service URL: " + baseURL);
+                    serviceUrl = new URL(baseURL);
+                } catch (MalformedURLException e1) {
+                }
             }
         }
 
@@ -306,9 +313,7 @@ public class AddWMSLayerPanel extends JPanel {
             List<LayerDetails> layers = parseLayers(children, new HashSet<String>());
             updateTreeList(layers);
         } catch(Exception e) {
-            JOptionPane.showMessageDialog(this, tr("Could not parse WMS layer list."),
-                    tr("WMS Error"), JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
+            showError(incomingData, e);
             return;
         }
     }
@@ -457,6 +462,9 @@ public class AddWMSLayerPanel extends JPanel {
     }
 
     private static Element getChild(Element parent, String name) {
+        if (parent == null) {
+            return null;
+        }
         for (Node child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
             if (child instanceof Element && name.equals(child.getNodeName())) {
                 return (Element) child;
@@ -469,7 +477,6 @@ public class AddWMSLayerPanel extends JPanel {
 
         private String name;
         private String ident;
-        private Set<String> crsList;
         private List<LayerDetails> children;
         private Bounds bounds;
         private boolean supported;
@@ -479,7 +486,6 @@ public class AddWMSLayerPanel extends JPanel {
                 List<LayerDetails> childLayers) {
             this.name = name;
             this.ident = ident;
-            this.crsList = crsList;
             this.supported = supportedLayer;
             this.children = childLayers;
             this.bounds = bounds;
